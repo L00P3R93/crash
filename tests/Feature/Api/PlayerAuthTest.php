@@ -24,6 +24,19 @@ class PlayerAuthTest extends TestCase
         $response->assertOk()->assertJsonStructure(['token', 'player' => ['msisdn', 'name', 'balance']]);
     }
 
+    public function test_a_player_can_log_in_with_an_unnormalized_msisdn(): void
+    {
+        $player = Player::factory()->withPin('4321')->create(['msisdn' => '254712345678']);
+        Wallet::factory()->create(['player_id' => $player->id]);
+
+        $response = $this->postJson('/api/auth/login', [
+            'msisdn' => '+254712345678',
+            'pin' => '4321',
+        ]);
+
+        $response->assertOk()->assertJsonPath('player.msisdn', '254712345678');
+    }
+
     public function test_login_fails_with_the_wrong_pin(): void
     {
         $player = Player::factory()->withPin('4321')->create();

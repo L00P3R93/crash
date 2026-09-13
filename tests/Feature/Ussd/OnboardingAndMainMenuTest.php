@@ -24,6 +24,23 @@ class OnboardingAndMainMenuTest extends TestCase
         $this->assertNotNull($player->wallet);
     }
 
+    public function test_a_plus_prefixed_phone_number_is_stored_normalized(): void
+    {
+        $this->ussd('sess-plus', '+254712345678', '');
+
+        $this->assertDatabaseHas('players', ['msisdn' => '254712345678']);
+        $this->assertDatabaseMissing('players', ['msisdn' => '+254712345678']);
+        $this->assertSame(1, Player::query()->count());
+    }
+
+    public function test_the_same_number_in_different_formats_resolves_to_one_player(): void
+    {
+        $this->ussd('sess-plus-a', '+254712345678', '');
+        $this->ussd('sess-plus-b', '254712345678', '');
+
+        $this->assertSame(1, Player::query()->where('msisdn', '254712345678')->count());
+    }
+
     public function test_setting_and_confirming_a_pin_leads_to_the_main_menu(): void
     {
         $this->ussd('sess-2', '254712345678', '');

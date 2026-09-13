@@ -98,13 +98,16 @@
                 For entertainment purposes only. Play responsibly — set limits and never chase losses.
                 Players must be 18 years or older.
             </p>
+            {{--
             <p class="mt-2">Licence no. pending · Support: <a href="mailto:support@example.com" class="underline decoration-casino-white/30 hover:text-casino-white">support@example.com</a></p>
+
             <p class="mt-4">
                 <a href="{{ route('filament.admin.auth.login') }}" class="inline-flex items-center gap-1 underline decoration-casino-white/20 underline-offset-2 hover:text-casino-white hover:decoration-casino-white/50">
                     <x-heroicon-o-lock-closed class="size-3.5" />
                     Staff sign in
                 </a>
             </p>
+            --}}
         </footer>
     </body>
 </html>

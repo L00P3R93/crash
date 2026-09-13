@@ -7,6 +7,7 @@ use App\Enums\UssdSessionStatus;
 use App\Models\Player;
 use App\Models\UssdSession;
 use App\Models\Wallet;
+use App\Support\MsisdnNormalizer;
 use Illuminate\Support\Carbon;
 
 class UssdSessionManager
@@ -23,6 +24,11 @@ class UssdSessionManager
         if ($existing) {
             return $existing;
         }
+
+        // Africa's Talking sends E.164 ("+254712345678") — normalize before
+        // this ever touches `players.msisdn` so the same physical number
+        // always matches the same player row, regardless of how it arrives.
+        $msisdn = MsisdnNormalizer::normalize($msisdn);
 
         $player = Player::query()->firstOrCreate(
             ['msisdn' => $msisdn],

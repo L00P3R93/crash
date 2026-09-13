@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\LoginRequest;
 use App\Models\Player;
+use App\Support\MsisdnNormalizer;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -22,7 +23,11 @@ class PlayerAuthController extends Controller
     {
         $data = $request->validated();
 
-        $player = Player::query()->where('msisdn', $data['msisdn'])->first();
+        // A player's own msisdn is always stored normalized (see
+        // MsisdnNormalizer) — match web login input the same way, so
+        // "+254712345678" or "0712345678" logs in the same account
+        // "254712345678" was registered under via USSD.
+        $player = Player::query()->where('msisdn', MsisdnNormalizer::normalize($data['msisdn']))->first();
 
         if (! $player || ! $player->pin_hash || ! Hash::check($data['pin'], $player->pin_hash)) {
             throw ValidationException::withMessages([

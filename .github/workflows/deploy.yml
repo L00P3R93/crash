@@ -1,4 +1,366 @@
-name: deploy.yml
+name: Deploy to Production
+
 on:
+    push:
+        branches:
+            - main
+            - master
+    workflow_dispatch:
+
+concurrency:
+    group: production-deployment
+    cancel-in-progress: false
 
 jobs:
+    deploy:
+        name: Deploy to Production
+        runs-on: ubuntu-24.04
+        timeout-minutes: 20
+
+        steps:
+
+            # -----------------------------------------------------------------------
+            # Checkout
+            # -----------------------------------------------------------------------
+            - name: Checkout code
+              uses: actions/checkout@v4
+              with:
+                  fetch-depth: 1
+
+            # -----------------------------------------------------------------------
+            # SSH agent
+            # -----------------------------------------------------------------------
+            - name: Configure SSH
+              uses: webfactory/ssh-agent@v0.9.1
+              with:
+                  ssh-private-key: ${{ secrets.DEPLOY_KEY }}
+
+            # -----------------------------------------------------------------------
+            # Known hosts
+            # -----------------------------------------------------------------------
+            - name: Configure known hosts
+              run: |
+                  mkdir -p ~/.ssh
+                  chmod 700 ~/.ssh
+
+                  echo "${{ secrets.DEPLOY_KNOWN_HOSTS }}" >> ~/.ssh/known_hosts
+
+                  chmod 644 ~/.ssh/known_hosts
+
+            # -----------------------------------------------------------------------
+            # Deploy
+            # -----------------------------------------------------------------------
+            - name: Deploy to Production
+              env:
+                  DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+                  DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+                  DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+
+              run: |
+                  set -euo pipefail
+
+                  echo "========================================"
+                  echo "Starting production deployment"
+                  echo "========================================"
+
+                  ssh \
+                    -o BatchMode=yes \
+                    -o ConnectTimeout=15 \
+                    "${DEPLOY_USER}@${DEPLOY_HOST}" \
+                    "DEPLOY_PATH='${DEPLOY_PATH}' DEPLOY_USER='${DEPLOY_USER}' bash -s" << 'EOF'
+
+                  set -Eeuo pipefail
+
+                  cd "$DEPLOY_PATH"
+
+                  echo ""
+                  echo "========================================"
+                  echo "Production Deployment"
+                  echo "========================================"
+                  echo "Application: $DEPLOY_PATH"
+                  echo "User:        $(whoami)"
+                  echo "Server:      $(hostname)"
+                  echo "========================================"
+                  echo ""
+
+                  # -------------------------------------------------------------------
+                  # Verify environment
+                  # -------------------------------------------------------------------
+
+                  echo "Checking required commands..."
+
+                  command -v git >/dev/null
+                  command -v php8.4 >/dev/null
+                  command -v composer >/dev/null
+                  command -v npm >/dev/null
+
+                  echo "Required commands found."
+
+                  # -------------------------------------------------------------------
+                  # Verify passwordless sudo
+                  # -------------------------------------------------------------------
+
+                  sudo -n true
+
+                  echo "Passwordless sudo verified."
+
+                  # -------------------------------------------------------------------
+                  # Verify GitHub SSH authentication
+                  #
+                  # IMPORTANT:
+                  # The deployment script is being provided through stdin.
+                  # Redirect stdin to /dev/null so this SSH test cannot consume
+                  # the remaining deployment script.
+                  # -------------------------------------------------------------------
+
+                  echo ""
+                  echo "Testing GitHub SSH authentication..."
+
+                  ssh \
+                      -o BatchMode=yes \
+                      -o StrictHostKeyChecking=yes \
+                      -T git@github.com \
+                      </dev/null \
+                      2>&1 || true
+
+                  echo "GitHub SSH authentication test completed."
+
+                  # -------------------------------------------------------------------
+                  # Verify repository
+                  # -------------------------------------------------------------------
+
+                  if [ ! -d ".git" ]; then
+                      echo "ERROR: $DEPLOY_PATH is not a Git repository."
+                      exit 1
+                  fi
+
+                  echo "Git repository verified."
+
+                  # -------------------------------------------------------------------
+                  # Show current version
+                  # -------------------------------------------------------------------
+
+                  echo ""
+                  echo "Current commit:"
+                  git rev-parse --short HEAD
+
+                  # -------------------------------------------------------------------
+                  # Enable maintenance mode
+                  # -------------------------------------------------------------------
+
+                  echo ""
+                  echo "Enabling Laravel maintenance mode..."
+
+                  /usr/bin/php8.4 artisan down --retry=60
+
+                  # -------------------------------------------------------------------
+                  # Always bring application back online if deployment fails
+                  # -------------------------------------------------------------------
+
+                  cleanup() {
+                      EXIT_CODE=$?
+
+                      if [ "$EXIT_CODE" -ne 0 ]; then
+
+                          echo ""
+                          echo "========================================"
+                          echo "Deployment FAILED"
+                          echo "Attempting to disable maintenance mode..."
+                          echo "========================================"
+
+                          /usr/bin/php8.4 artisan up || true
+                      fi
+
+                      exit "$EXIT_CODE"
+                  }
+
+                  trap cleanup EXIT
+
+                  # -------------------------------------------------------------------
+                  # Pull latest code
+                  # -------------------------------------------------------------------
+
+                  echo ""
+                  echo "Updating application code..."
+
+                  for attempt in 1 2 3; do
+
+                      echo "Git pull attempt $attempt..."
+
+                      if git pull --ff-only origin main; then
+                          echo "Git pull successful."
+                          break
+                      fi
+
+                      if [ "$attempt" -eq 3 ]; then
+                          echo "ERROR: Git pull failed after 3 attempts."
+                          exit 1
+                      fi
+
+                      echo "Git pull failed. Retrying in 10 seconds..."
+                      sleep 10
+
+                  done
+
+                  echo ""
+                  echo "New commit:"
+                  git rev-parse --short HEAD
+
+                  # -------------------------------------------------------------------
+                  # Install Composer dependencies
+                  # -------------------------------------------------------------------
+
+                  echo ""
+                  echo "Installing Composer dependencies..."
+
+                  /usr/local/bin/composer install \
+                      --no-interaction \
+                      --no-dev \
+                      --prefer-dist \
+                      --optimize-autoloader \
+                      --no-progress
+
+                  # -------------------------------------------------------------------
+                  # Ensure Laravel writable directories exist
+                  # -------------------------------------------------------------------
+
+                  echo ""
+                  echo "Preparing Laravel writable directories..."
+
+                  mkdir -p \
+                      storage/framework/cache \
+                      storage/framework/sessions \
+                      storage/framework/views \
+                      storage/framework/testing \
+                      storage/logs \
+                      storage/app/public \
+                      bootstrap/cache
+
+                  # -------------------------------------------------------------------
+                  # Install NPM dependencies
+                  # -------------------------------------------------------------------
+
+                  echo ""
+                  echo "Installing frontend dependencies..."
+
+                  if [ -f package-lock.json ]; then
+
+                      npm ci \
+                          --no-audit \
+                          --no-fund
+
+                  else
+
+                      echo "WARNING: package-lock.json not found."
+                      echo "Falling back to npm install."
+
+                      npm install \
+                          --no-audit \
+                          --no-fund
+
+                  fi
+
+                  # -------------------------------------------------------------------
+                  # Build frontend assets
+                  # -------------------------------------------------------------------
+
+                  echo ""
+                  echo "Building frontend assets..."
+
+                  npm run build
+
+                  # -------------------------------------------------------------------
+                  # Storage link
+                  # -------------------------------------------------------------------
+
+                  echo ""
+                  echo "Ensuring Laravel storage link exists..."
+
+                  /usr/bin/php8.4 artisan storage:link --force || true
+
+                  # -------------------------------------------------------------------
+                  # Database migrations
+                  # -------------------------------------------------------------------
+
+                  echo ""
+                  echo "Running database migrations..."
+
+                  /usr/bin/php8.4 artisan migrate --force
+
+                  # -------------------------------------------------------------------
+                  # Laravel optimization
+                  # -------------------------------------------------------------------
+
+                  echo ""
+                  echo "Optimizing Laravel..."
+
+                  /usr/bin/php8.4 artisan optimize
+
+                  # -------------------------------------------------------------------
+                  # Fix Laravel permissions
+                  # -------------------------------------------------------------------
+
+                  echo ""
+                  echo "Fixing Laravel permissions..."
+
+                  sudo chown -R "${DEPLOY_USER}:www-data" storage bootstrap/cache
+
+                  sudo find storage bootstrap/cache \
+                      -type d \
+                      -exec chmod 2775 {} \;
+
+                  sudo find storage bootstrap/cache \
+                      -type f \
+                      -exec chmod 664 {} \;
+
+                  # .env remains private but readable by www-data.
+                  sudo chown "${DEPLOY_USER}:www-data" .env
+                  sudo chmod 640 .env
+
+                  # -------------------------------------------------------------------
+                  # Restart Laravel queue workers
+                  # -------------------------------------------------------------------
+
+                  echo ""
+                  echo "Restarting Laravel queue workers..."
+
+                  sudo supervisorctl restart aviator-game-loop aviator-horizon aviator-reverb aviator-scheduler
+
+                  # -------------------------------------------------------------------
+                  # Verify workers
+                  # -------------------------------------------------------------------
+
+                  echo ""
+                  echo "Checking Supervisor workers..."
+
+                  sudo supervisorctl status
+
+                  # -------------------------------------------------------------------
+                  # Application health check
+                  # -------------------------------------------------------------------
+
+                  echo ""
+                  echo "Running Laravel health check..."
+
+                  /usr/bin/php8.4 artisan about >/dev/null
+
+                  echo "Laravel health check passed."
+
+                  # -------------------------------------------------------------------
+                  # Bring application back online
+                  # -------------------------------------------------------------------
+
+                  echo ""
+                  echo "Disabling maintenance mode..."
+
+                  /usr/bin/php8.4 artisan up
+
+                  # Deployment succeeded.
+                  trap - EXIT
+
+                  echo ""
+                  echo "========================================"
+                  echo "Deployment completed successfully"
+                  echo "========================================"
+
+                  EOF
