@@ -1,0 +1,332 @@
+@import 'tailwindcss';
+@import '../../vendor/livewire/flux/dist/flux.css';
+
+/* ─── Self-hosted fonts (replaces Google Fonts CDN link) ── */
+@import '@fontsource/cinzel/400.css';
+@import '@fontsource/cinzel/600.css';
+@import '@fontsource/cinzel/700.css';
+@import '@fontsource/cinzel/800.css';
+@import '@fontsource/cinzel/900.css';
+@import '@fontsource/cinzel-decorative/400.css';
+@import '@fontsource/cinzel-decorative/700.css';
+@import '@fontsource/cinzel-decorative/900.css';
+@import '@fontsource/outfit/300.css';
+@import '@fontsource/outfit/400.css';
+@import '@fontsource/outfit/500.css';
+@import '@fontsource/outfit/600.css';
+
+@source '../views';
+@source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
+@source '../../vendor/livewire/flux-pro/stubs/**/*.blade.php';
+@source '../../vendor/livewire/flux/stubs/**/*.blade.php';
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* ─── Casino CSS variables ─────────────────────────────── */
+:root {
+  --casino-black: #0a0a0a;
+  --casino-dark: #111111;
+  --casino-card: #1a1a1a;
+  --gold: #f5c542;
+  --gold-2: #ffde74;
+  --gold-dim: #c9a84c;
+  --gold-shine: #fff0b0;
+  --gold-glow: rgba(245, 197, 66, 0.35);
+  --gold-gradient: linear-gradient(135deg, #f5c542 0%, #ffde74 50%, #f5c542 100%);
+  --casino-white: #f5f5f0;
+  --casino-muted: #6b6b6b;
+  /* Loss/danger accent — the source palette reserves green for an
+     unrelated sportsbook feature, so a red is kept here for the
+     round-history/loss states this app already has. */
+  --loss: #c9424a;
+  --loss-bright: #e2626a;
+  /* Win/cashed-out accent — reuses the source palette's green hue
+     (there defined for a sportsbook feature we're not porting) since
+     it reads naturally as "you won" for this game's own states. */
+  --win: #32c850;
+  --win-bright: #50e870;
+}
+
+/* ─── Tailwind theme ───────────────────────────────────── */
+@theme {
+    --font-sans: 'Outfit', 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+    --font-display: 'Cinzel', serif;
+
+    --color-casino-black: #0a0a0a;
+    --color-casino-dark: #111111;
+    --color-casino-card: #1a1a1a;
+    --color-gold: #f5c542;
+    --color-gold-2: #ffde74;
+    --color-gold-dim: #c9a84c;
+    --color-gold-shine: #fff0b0;
+    --color-casino-white: #f5f5f0;
+    --color-casino-muted: #6b6b6b;
+    --color-loss: #c9424a;
+    --color-loss-bright: #e2626a;
+    --color-win: #32c850;
+    --color-win-bright: #50e870;
+
+    --color-zinc-50: #fafafa;
+    --color-zinc-100: #f5f5f5;
+    --color-zinc-200: #e5e5e5;
+    --color-zinc-300: #d4d4d4;
+    --color-zinc-400: #a3a3a3;
+    --color-zinc-500: #737373;
+    --color-zinc-600: #525252;
+    --color-zinc-700: #404040;
+    --color-zinc-800: #262626;
+    --color-zinc-900: #171717;
+    --color-zinc-950: #0a0a0a;
+
+    --color-accent: #f5c542;
+    --color-accent-content: #f5c542;
+    --color-accent-foreground: #0a0a0a;
+}
+
+@layer theme {
+    .dark {
+        --color-accent: #f5c542;
+        --color-accent-content: #f5c542;
+        --color-accent-foreground: #0a0a0a;
+    }
+}
+
+/* ─── Font utilities ───────────────────────────────────── */
+.font-cinzel            { font-family: 'Cinzel', serif; }
+.font-cinzel-decorative { font-family: 'Cinzel Decorative', cursive; }
+.font-outfit            { font-family: 'Outfit', sans-serif; }
+
+/* ─── Keyframes ────────────────────────────────────────── */
+@keyframes goldShimmer {
+  0%   { background-position: -200% center; }
+  100% { background-position:  200% center; }
+}
+
+@keyframes floatSymbol {
+  0%,  100% { transform: translateY(0px)   rotate(0deg)  scale(1);    opacity: 0.18; }
+  33%        { transform: translateY(-22px) rotate(6deg)  scale(1.05); opacity: 0.28; }
+  66%        { transform: translateY(-12px) rotate(-4deg) scale(0.97); opacity: 0.22; }
+}
+
+@keyframes float {
+  0%,  100% { transform: translateY(0px)   rotate(0deg); opacity: 0.15; }
+  50%        { transform: translateY(-30px) rotate(8deg); opacity: 0.35; }
+}
+
+@keyframes pulseRing {
+  0%   { transform: translate(-50%, -50%) scale(0.8); opacity: 0.6; }
+  100% { transform: translate(-50%, -50%) scale(1.6); opacity: 0;   }
+}
+
+@keyframes meshShift {
+  0%,  100% { background-position: 0%   50%; }
+  50%        { background-position: 100% 50%; }
+}
+
+@keyframes marquee {
+  0%   { transform: translateX(0);    }
+  100% { transform: translateX(-50%); }
+}
+
+/* ─── Shimmer text ─────────────────────────────────────── */
+.shimmer-text {
+  background: linear-gradient(90deg, #f5c542 0%, #ffde74 30%, #fff0b0 50%, #ffde74 70%, #f5c542 100%);
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: goldShimmer 3s linear infinite;
+}
+
+/* ─── Primary gradient button ──────────────────────────── */
+.btn-casino-primary {
+  background: linear-gradient(135deg, #f5c542 0%, #ffde74 45%, #f5c542 100%);
+  color: #0a0a0a;
+  font-family: 'Cinzel', serif;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  border: none;
+  transition: all 0.3s ease;
+  cursor: pointer;
+}
+.btn-casino-primary:hover {
+  background: linear-gradient(135deg, #ffde74 0%, #ffe999 45%, #ffde74 100%);
+  box-shadow: 0 0 20px rgba(245, 197, 66, 0.45), 0 4px 15px rgba(245, 197, 66, 0.25);
+  transform: translateY(-1px);
+}
+
+/* ─── Ghost gradient button ────────────────────────────── */
+.btn-casino-ghost {
+  background: transparent;
+  border: 1.5px solid transparent;
+  background-clip: padding-box;
+  position: relative;
+  color: #f5c542;
+  font-family: 'Cinzel', serif;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  transition: all 0.3s ease;
+  cursor: pointer;
+}
+.btn-casino-ghost::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1.5px;
+  background: linear-gradient(135deg, #f5c542, #ffde74, #f5c542);
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+}
+.btn-casino-ghost:hover {
+  color: #ffde74;
+  background: rgba(245, 197, 66, 0.08);
+}
+
+/* ─── Glassmorphism cards ──────────────────────────────── */
+.glass-card {
+  background: rgba(255, 255, 255, 0.04);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border: 1px solid rgba(245, 197, 66, 0.15);
+  border-radius: 16px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  transition: all 0.35s cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+.glass-card-hover:hover {
+  background: rgba(255, 255, 255, 0.07);
+  border-color: rgba(245, 197, 66, 0.35);
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.5), 0 0 20px rgba(245, 197, 66, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  transform: translateY(-4px);
+}
+
+/* ─── Stat badges ───────────────────────────────────────── */
+.stat-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 10px;
+  border-radius: 999px;
+  background: rgba(245, 197, 66, 0.1);
+  border: 1px solid rgba(245, 197, 66, 0.25);
+  color: #f5c542;
+  font-size: 0.72rem;
+  font-family: 'Outfit', sans-serif;
+  letter-spacing: 0.04em;
+}
+
+/* ─── Smooth in-page anchor scrolling ──────────────────── */
+@media (prefers-reduced-motion: no-preference) {
+  html {
+    scroll-behavior: smooth;
+  }
+}
+
+/* ─── Hide scrollbar on horizontally-scrolling strips ──── */
+.scrollbar-none {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+
+/* ─── Marquee ticker ─────────────────────────────────────── */
+.animate-marquee {
+  animation: marquee 20s linear infinite;
+}
+
+/* ── Game Grid ──────────────────────────────────────────── */
+.games-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 1.25rem;
+}
+
+/* ── Game Card ───────────────────────────────────────────── */
+.game-card {
+  border-radius: 12px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(245, 197, 66, 0.15);
+  cursor: pointer;
+  user-select: none;
+  transition:
+    transform    0.22s cubic-bezier(0.34, 1.56, 0.64, 1),
+    box-shadow   0.22s ease,
+    border-color 0.22s ease;
+}
+.game-card:hover {
+  transform:    translateY(-6px) scale(1.03);
+  box-shadow:   0 12px 32px rgba(245, 197, 66, 0.35);
+  border-color: var(--gold);
+}
+.game-card:active {
+  transform:  translateY(-2px) scale(1.01);
+  box-shadow: 0 6px 16px rgba(245, 197, 66, 0.25);
+}
+.game-card:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 3px;
+}
+.game-card__image-wrap img {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+.game-card__label {
+  padding: 0.6rem 0.75rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: #fff;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  background: rgba(0, 0, 0, 0.4);
+  border-top: 1px solid rgba(245, 197, 66, 0.1);
+}
+
+/* ─── Hero animated gradient mesh ──────────────────────── */
+.hero-mesh {
+  background:
+    radial-gradient(ellipse at 20% 50%, rgba(245, 197, 66, 0.07) 0%, transparent 50%),
+    radial-gradient(ellipse at 80% 20%, rgba(245, 100,   0, 0.05) 0%, transparent 50%),
+    radial-gradient(ellipse at 50% 80%, rgba(100,  50, 200, 0.03) 0%, transparent 50%),
+    #0a0a0a;
+  background-size: 400% 400%;
+  animation: meshShift 15s ease infinite;
+}
+
+/* ─── Flux base overrides ───────────────────────────────── */
+@layer base {
+    *,
+    ::after,
+    ::before,
+    ::backdrop,
+    ::file-selector-button {
+        border-color: var(--color-gray-200, currentColor);
+    }
+}
+
+[data-flux-field]:not(ui-radio, ui-checkbox) {
+    @apply grid gap-2;
+}
+
+[data-flux-label] {
+    @apply !mb-0 !leading-tight;
+}
+
+input:focus[data-flux-control],
+textarea:focus[data-flux-control],
+select:focus[data-flux-control] {
+    @apply outline-hidden ring-2 ring-accent ring-offset-2 ring-offset-accent-foreground;
+}
+
+/* ─── x-cloak ────────────────────────────────────────────── */
+[x-cloak] { display: none !important; }
